@@ -2,13 +2,21 @@ from fastapi import FastAPI, HTTPException
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
 from datetime import datetime
+import logging
 
 app = FastAPI()
+
+# Logging কনফিগারেশন
+logging.basicConfig(level=logging.INFO)
 
 # MongoDB এর সাথে সংযোগ স্থাপন
 client = AsyncIOMotorClient("mongodb+srv://shawondata:shawondata@cluster0.sigdzxx.mongodb.net/shawon?retryWrites=true&w=majority")
 db = client.shawon
 answers_collection = db.answers
+
+@app.get("/")
+async def root():
+    return {"message": "Hello World"}
 
 @app.get("/answers/{id}")
 async def get_answer(id: str):
@@ -39,6 +47,7 @@ async def create_answer(answer: dict):
         result = await answers_collection.insert_one(answer)
         return {"inserted_id": str(result.inserted_id)}
     except Exception as e:
+        logging.error(f"Error inserting data: {e}")
         raise HTTPException(status_code=400, detail="Error inserting data")
 
 @app.get('/answers')
@@ -46,13 +55,10 @@ async def get_answers():
     try:
         answers = []
         async for answer in answers_collection.find():
-            answer['_id'] = str(answer['_id'])  # Convert ObjectId to string for JSON serialization
+            answer['_id'] = str(answer['_id'])  # Convert ObjectId to string
             answer['questionId'] = str(answer.get('questionId'))
             answers.append(answer)
         return answers
     except Exception as e:
+        logging.error(f"Error fetching answers: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch answers")
-
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}

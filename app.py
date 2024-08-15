@@ -1,64 +1,67 @@
-from fastapi import FastAPI, HTTPException
-from motor.motor_asyncio import AsyncIOMotorClient
+from flask import Flask, request, jsonify, abort
+from flask_cors import CORS
+from pymongo import MongoClient
 from bson import ObjectId
 from datetime import datetime
-import logging
 
-app = FastAPI()
+app = Flask(__name__)
 
-# Logging কনফিগারেশন
-logging.basicConfig(level=logging.INFO)
 
-# MongoDB এর সাথে সংযোগ স্থাপন
-client = AsyncIOMotorClient("mongodb+srv://shawondata:shawondata@cluster0.sigdzxx.mongodb.net/shawon?retryWrites=true&w=majority")
+
+# MongoDB কনফিগারেশন
+client = MongoClient("mongodb+srv://shawondata:shawondata@cluster0.sigdzxx.mongodb.net/shawon?retryWrites=true&w=majority")
 db = client.shawon
 answers_collection = db.answers
 
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}
-
-@app.get("/answers/{id}")
-async def get_answer(id: str):
+@app.route("/answers/<id>", methods=["GET"])
+def get_answer(id):
     try:
-        # _id কে ObjectId তে রূপান্তর করা
         object_id = ObjectId(id)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail="Invalid ID format")
-
-    # MongoDB থেকে নির্দিষ্ট _id ব্যবহার করে ডেটা রিড করা
-    answer = await answers_collection.find_one({"_id": object_id})
+    except Exception:
+        abort(400, description="Invalid ID format")
+    
+    answer = answers_collection.find_one({"_id": object_id})
     
     if answer:
-        # ObjectId কে স্ট্রিং এ রূপান্তর করা
         answer["_id"] = str(answer["_id"])
         answer["questionId"] = str(answer.get("questionId"))
-        return answer
+        return jsonify(answer)
     else:
-        # যদি ডেটা না পাওয়া যায়
-        raise HTTPException(status_code=404, detail="Answer not found!")
+        abort(404, description="Answer not found!")
 
-@app.post("/answers")
-async def create_answer(answer: dict):
+@app.route("/answers", methods=["POST"])
+def create_answer():
     try:
-        # MongoDB answers এ নতুন ডকুমেন্ট সংরক্ষণ করা
+        answer = request.json
         answer["questionId"] = ObjectId(answer["questionId"])
         answer["timestamp"] = datetime.utcnow()
-        result = await answers_collection.insert_one(answer)
-        return {"inserted_id": str(result.inserted_id)}
-    except Exception as e:
-        logging.error(f"Error inserting data: {e}")
-        raise HTTPException(status_code=400, detail="Error inserting data")
+        result = answers_collection.insert_one(answer)
+        return jsonify({"inserted_id": str(result.inserted_id)})
+    except Exception:
+        abort(400, description="Error inserting data")
 
-@app.get('/answers')
-async def get_answers():
+@app.route('/answers', methods=["GET"])
+def get_answers():
     try:
+        page = int(request.args.get('page', 1))  # পৃষ্ঠার সংখ্যা
+        per_page = int(request.args.get('per_page', 10))  # প্রতি পৃষ্ঠায় কতগুলো আইটেম দেখাবে
+        
         answers = []
-        async for answer in answers_collection.find():
-            answer['_id'] = str(answer['_id'])  # Convert ObjectId to string
+        cursor = answers_collection.find().skip((page - 1) * per_page).limit(per_page)
+        
+        for answer in cursor:
+            answer['_id'] = str(answer['_id'])
             answer['questionId'] = str(answer.get('questionId'))
             answers.append(answer)
-        return answers
+        
+        return jsonify(answers)
     except Exception as e:
-        logging.error(f"Error fetching answers: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch answers")
+        abort(500, description="Failed to fetch answers")
+
+
+@app.route("/", methods=["GET"])
+def root():
+    return jsonify({"message": "Hello World"})
+
+if __name__ == "__main__":
+    app.run(debug=True)

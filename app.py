@@ -1,21 +1,9 @@
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
 from datetime import datetime
 
 app = FastAPI()
-
-# CORS পলিসি কনফিগারেশন
-orig_backend = ["http://localhost:3000", "https://yourdomain.com"]  # এখানে আপনার অনুমোদিত ডোমেইন যোগ করুন
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=orig_backend,  # অনুমোদিত ডোমেইনগুলির তালিকা
-    allow_credentials=True,
-    allow_methods=["*"],  # সমস্ত HTTP মেথড অনুমোদিত
-    allow_headers=["*"],  # সমস্ত হেডার অনুমোদিত
-)
 
 # MongoDB এর সাথে সংযোগ স্থাপন
 client = AsyncIOMotorClient("mongodb+srv://shawondata:shawondata@cluster0.sigdzxx.mongodb.net/shawon?retryWrites=true&w=majority")

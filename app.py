@@ -6,9 +6,10 @@ from datetime import datetime
 
 app = Flask(__name__)
 
+# Initialize CORS
+CORS(app)
 
-
-# MongoDB কনফিগারেশন
+# MongoDB configuration
 client = MongoClient("mongodb+srv://shawondata:shawondata@cluster0.sigdzxx.mongodb.net/shawon?retryWrites=true&w=majority")
 db = client.shawon
 answers_collection = db.answers
@@ -43,8 +44,8 @@ def create_answer():
 @app.route('/answers', methods=["GET"])
 def get_answers():
     try:
-        page = int(request.args.get('page', 1))  # পৃষ্ঠার সংখ্যা
-        per_page = int(request.args.get('per_page', 10))  # প্রতি পৃষ্ঠায় কতগুলো আইটেম দেখাবে
+        page = int(request.args.get('page', 1))  # Page number
+        per_page = int(request.args.get('per_page', 10))  # Items per page
         
         answers = []
         cursor = answers_collection.find().skip((page - 1) * per_page).limit(per_page)
@@ -57,7 +58,6 @@ def get_answers():
         return jsonify(answers)
     except Exception as e:
         abort(500, description="Failed to fetch answers")
-
 
 @app.route("/", methods=["GET"])
 def root():

@@ -1,45 +1,66 @@
-from typing import Optional
-import httpx
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
-from models import GithubUserModel
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from motor.motor_asyncio import AsyncIOMotorClient
+from bson import ObjectId
+from datetime import datetime
 
 app = FastAPI()
-templates = Jinja2Templates(directory="templates")
 
-limits = httpx.Limits(max_keepalive_connections=5, max_connections=10)
-timeout = httpx.Timeout(timeout=5.0, read=15.0)
-client = httpx.AsyncClient(limits=limits, timeout=timeout)
+# CORS পলিসি কনফিগারেশন
+orig_backend = ["http://localhost:3000", "https://yourdomain.com"]  # এখানে আপনার অনুমোদিত ডোমেইন যোগ করুন
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=orig_backend,  # অনুমোদিত ডোমেইনগুলির তালিকা
+    allow_credentials=True,
+    allow_methods=["*"],  # সমস্ত HTTP মেথড অনুমোদিত
+    allow_headers=["*"],  # সমস্ত হেডার অনুমোদিত
+)
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    print("shutting down...")
-    await client.aclose()
+# MongoDB এর সাথে সংযোগ স্থাপন
+client = AsyncIOMotorClient("mongodb+srv://shawondata:shawondata@cluster0.sigdzxx.mongodb.net/shawon?retryWrites=true&w=majority")
+db = client.shawon
+answers_collection = db.answers
 
+@app.get("/answers/{id}")
+async def get_answer(id: str):
+    try:
+        # _id কে ObjectId তে রূপান্তর করা
+        object_id = ObjectId(id)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Invalid ID format")
 
-@app.get("/", response_class=HTMLResponse)
-async def index(request: Request, username: str = None):
-    if not username:
-        return templates.TemplateResponse("index.html", context={"request": request})
+    # MongoDB থেকে নির্দিষ্ট _id ব্যবহার করে ডেটা রিড করা
+    answer = await answers_collection.find_one({"_id": object_id})
+    
+    if answer:
+        # ObjectId কে স্ট্রিং এ রূপান্তর করা
+        answer["_id"] = str(answer["_id"])
+        answer["questionId"] = str(answer.get("questionId"))
+        return answer
+    else:
+        # যদি ডেটা না পাওয়া যায়
+        raise HTTPException(status_code=404, detail="Answer not found!")
 
-    user = await get_github_profile(request, username)
-    if not user:
-        return templates.TemplateResponse("404.html", context={"request": request})
+@app.post("/answers")
+async def create_answer(answer: dict):
+    try:
+        # MongoDB answers এ নতুন ডকুমেন্ট সংরক্ষণ করা
+        answer["questionId"] = ObjectId(answer["questionId"])
+        answer["timestamp"] = datetime.utcnow()
+        result = await answers_collection.insert_one(answer)
+        return {"inserted_id": str(result.inserted_id)}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Error inserting data")
 
-    return templates.TemplateResponse("index.html", context={"request": request, "user": user})
-
-
-@app.get("/{username}", response_model=GithubUserModel)
-async def get_github_profile(request: Request, username: str) -> Optional[GithubUserModel]:
-    headers = {"accept": "application/vnd.github.v3+json"}
-
-    response = await client.get(f"https://api.github.com/users/{username}", headers=headers)
-
-    if response.status_code == 404:
-        return None
-
-    user = GithubUserModel(**response.json())
-
-    return user
+@app.get('/answers')
+async def get_answers():
+    try:
+        answers = []
+        async for answer in answers_collection.find():
+            answer['_id'] = str(answer['_id'])  # Convert ObjectId to string for JSON serialization
+            answer['questionId'] = str(answer.get('questionId'))
+            answers.append(answer)
+        return answers
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to fetch answers")

@@ -19,3 +19,8 @@ uvicorn[standard]
 uvloop
 watchfiles
 websockets
+fastapi
+uvicorn
+motor
+pydantic
+

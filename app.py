@@ -6,8 +6,7 @@ from datetime import datetime
 
 app = FastAPI()
 
-# CORS পলিসি কনফিগারেশন
-orig_backend = ["http://localhost:3000", "https://yourdomain.com"]  # এখানে আপনার অনুমোদিত ডোমেইন যোগ করুন
+
 
 app.add_middleware(
     CORSMiddleware,

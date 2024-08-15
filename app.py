@@ -52,3 +52,7 @@ async def get_answers():
         return answers
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to fetch answers")
+
+@app.get("/")
+async def root():
+    return {"message": "Hello World"}

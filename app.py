@@ -88,6 +88,12 @@ def get_posts():
                     "content": 1,  # Assuming there's a 'content' field in the posts
                     "user": 1,  # Assuming there's a 'created_at' field in the posts
                     "videoUrl": 1,  # Assuming there's a 'created_at' field in the posts
+                    "questiontext": 1,  # Assuming there's a 'created_at' field in the posts
+                    "userid": 1,  # Assuming there's a 'created_at' field in the posts
+                    "username": 1,  # Assuming there's a 'created_at' field in the posts
+                    "image": 1,  # Assuming there's a 'created_at' field in the posts
+                    "uniqueId": 1,  # Assuming there's a 'created_at' field in the posts
+                    "time": 1,  # Assuming there's a 'created_at' field in the posts
                     "answers._id": {"$toString": "$answers._id"},
                     "answers.questionId": {"$toString": "$answers.questionId"},
                     "answers.answerText": 1,

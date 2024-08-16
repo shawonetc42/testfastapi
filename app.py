@@ -6,10 +6,10 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# Initialize CORS
+# Enable CORS for all routes
 CORS(app)
 
-# MongoDB configuration
+# MongoDB কনফিগারেশন
 client = MongoClient("mongodb+srv://shawondata:shawondata@cluster0.sigdzxx.mongodb.net/shawon?retryWrites=true&w=majority")
 db = client.shawon
 answers_collection = db.answers
@@ -44,8 +44,8 @@ def create_answer():
 @app.route('/answers', methods=["GET"])
 def get_answers():
     try:
-        page = int(request.args.get('page', 1))  # Page number
-        per_page = int(request.args.get('per_page', 10))  # Items per page
+        page = int(request.args.get('page', 1))  # পৃষ্ঠার সংখ্যা
+        per_page = int(request.args.get('per_page', 10))  # প্রতি পৃষ্ঠায় কতগুলো আইটেম দেখাবে
         
         answers = []
         cursor = answers_collection.find().skip((page - 1) * per_page).limit(per_page)
@@ -58,6 +58,52 @@ def get_answers():
         return jsonify(answers)
     except Exception as e:
         abort(500, description="Failed to fetch answers")
+
+@app.route("/test", methods=["GET"])
+def get_posts():
+    try:
+        # Get page and per_page query parameters
+        page = int(request.args.get('page', 1))  # Default to page 1
+        per_page = int(request.args.get('per_page', 10))  # Default to 10 items per page
+        
+        # Calculate the number of items to skip
+        skip = (page - 1) * per_page
+        
+        # Use MongoDB aggregation to fetch posts with answers
+        pipeline = [
+            {"$skip": skip},
+            {"$limit": per_page},
+            {
+                "$lookup": {
+                    "from": "answers",
+                    "localField": "_id",
+                    "foreignField": "questionId",
+                    "as": "answers"
+                }
+            },
+            {
+                "$project": {
+                    "_id": {"$toString": "$_id"},
+                    "title": 1,  # Assuming there's a 'title' field in the posts
+                    "content": 1,  # Assuming there's a 'content' field in the posts
+                    "user": 1,  # Assuming there's a 'created_at' field in the posts
+                    "videoUrl": 1,  # Assuming there's a 'created_at' field in the posts
+                    "answers._id": {"$toString": "$answers._id"},
+                    "answers.questionId": {"$toString": "$answers.questionId"},
+                    "answers.answerText": 1,
+                    "answers.answeredBy": 1,
+                    "answers.timestamp": 1,
+                    "answers.answerUserPhoto": 1  # Include all necessary fields from answers
+                }
+            }
+        ]
+        
+        posts = list(db.test.aggregate(pipeline))
+        
+        return jsonify(posts)
+    except Exception as e:
+        return jsonify({'error': 'Failed to fetch posts', 'details': str(e)}), 500
+
 
 @app.route("/", methods=["GET"])
 def root():

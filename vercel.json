@@ -5,7 +5,7 @@
     { "src": "/", "dest": "app.py" },
     { "src": "/answers", "dest": "app.py" },
     { "src": "/answers/(.*)", "dest": "app.py" },
-    { "src": "/docs", "dest": "app.py" },
+    { "src": "/test", "dest": "app.py" },
     { "src": "/openapi.json", "dest": "app.py" }
   ]
 }
